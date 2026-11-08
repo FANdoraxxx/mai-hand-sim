@@ -1,0 +1,98 @@
+{
+ "ARM_COLLISION": {
+  "thr": 89.4414,
+  "demoted": false,
+  "train_fp": 0.0012,
+  "test_fp": 0.0,
+  "raw_chart_rate_train": 0.1029,
+  "raw_chart_rate_test": 0.0912,
+  "n_events_tune": 123,
+  "max_m_tune": 92.9897
+ },
+ "DUAL_JACK_IMPOSSIBLE": {
+  "thr": 1.15,
+  "demoted": false,
+  "train_fp": 0.0,
+  "test_fp": 0.0057,
+  "raw_chart_rate_train": 0.0263,
+  "raw_chart_rate_test": 0.0199,
+  "n_events_tune": 26,
+  "max_m_tune": 1.0987
+ },
+ "EXTREME_CROSS_ARM": {
+  "thr": 2708.6962,
+  "demoted": false,
+  "train_fp": 0.0036,
+  "test_fp": 0.0171,
+  "raw_chart_rate_train": 0.5706,
+  "raw_chart_rate_test": 0.5214,
+  "n_events_tune": 1214,
+  "max_m_tune": 3513.0696
+ },
+ "FLYING_HAND": {
+  "thr": 1.9734,
+  "demoted": false,
+  "train_fp": 0.0036,
+  "test_fp": 0.0085,
+  "raw_chart_rate_train": 0.0167,
+  "raw_chart_rate_test": 0.0285,
+  "n_events_tune": 22,
+  "max_m_tune": 2.6723
+ },
+ "FORCED_SINGLE_HAND_JACK": {
+  "thr": 1.25,
+  "demoted": false,
+  "train_fp": 0.0036,
+  "test_fp": 0.0,
+  "raw_chart_rate_train": 0.0215,
+  "raw_chart_rate_test": 0.0228,
+  "n_events_tune": 31,
+  "max_m_tune": 1.6648
+ },
+ "FORCED_SINGLE_HAND_JUMP": {
+  "thr": 3.7656,
+  "demoted": false,
+  "train_fp": 0.0036,
+  "test_fp": 0.0,
+  "raw_chart_rate_train": 0.0263,
+  "raw_chart_rate_test": 0.0313,
+  "n_events_tune": 46,
+  "max_m_tune": 9.6442
+ },
+ "HAND_COLLISION": {
+  "thr": 1000000000.0,
+  "demoted": true,
+  "train_fp": 0.0,
+  "test_fp": 0.0,
+  "raw_chart_rate_train": 0.1495,
+  "raw_chart_rate_test": 0.1681,
+  "n_events_tune": 184,
+  "max_m_tune": 85.0
+ },
+ "SLIDE_JUMP_ZONE": {
+  "thr": 1.8,
+  "demoted": false,
+  "train_fp": 0.0012,
+  "test_fp": 0.0,
+  "raw_chart_rate_train": 0.0921,
+  "raw_chart_rate_test": 0.0741,
+  "n_events_tune": 121,
+  "max_m_tune": 2.5
+ },
+ "THREE_HAND_CONFLICT": {
+  "thr": 2.5,
+  "demoted": false,
+  "train_fp": 0.0012,
+  "test_fp": 0.0,
+  "raw_chart_rate_train": 0.0012,
+  "raw_chart_rate_test": 0.0,
+  "n_events_tune": 1,
+  "max_m_tune": 4.0
+ },
+ "_meta": {
+  "sim_core_version": "3.2.0",
+  "sim_core_code_hash": "3aa247ca1e50a7ce"
+ },
+ "sim_core_version": "3.2.0",
+ "sim_core_code_hash": "3aa247ca1e50a7ce"
+}

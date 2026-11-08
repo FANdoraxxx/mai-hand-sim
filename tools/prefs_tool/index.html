@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>sim_core v3 成对偏好采集工具 (Pairwise Choreography Preference Tool)</title>
+  <style>
+    :root {
+      --bg: #0f141c;
+      --panel: #18202c;
+      --border: #2a364a;
+      --text: #e6edf5;
+      --muted: #8ea0b8;
+      --left-hand: #2b95c3;
+      --right-hand: #c98842;
+      --accent: #3b82f6;
+      --good: #10b981;
+      --warn: #f59e0b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 16px 24px;
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+    }
+    h1 { font-size: 18px; margin: 0 0 12px 0; display: flex; justify-content: space-between; align-items: center; }
+    .toolbar {
+      display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+      background: var(--panel); border: 1px solid var(--border);
+      padding: 10px 14px; border-radius: 8px; margin-bottom: 14px;
+    }
+    select, input, button {
+      background: #101620; color: var(--text);
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 6px 10px; font-size: 13px;
+    }
+    button { cursor: pointer; background: #1e293b; font-weight: 600; }
+    button:hover { border-color: var(--accent); }
+    button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .arena {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+    }
+    .card {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px;
+    }
+    .card-header { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 15px; }
+    .canvas-wrap { display: flex; justify-content: center; background: #0b0f16; border-radius: 6px; padding: 6px; }
+    canvas { width: 340px; height: 340px; }
+    pre.simai {
+      margin: 0; padding: 8px; background: #0b0f16; border: 1px solid var(--border);
+      border-radius: 6px; font-size: 12px; max-height: 92px; overflow-y: auto; white-space: pre-wrap; color: #cbd5e1;
+    }
+    .metrics { font-size: 12px; color: var(--muted); line-height: 1.5; }
+    .vote-bar {
+      margin-top: 14px; display: flex; justify-content: center; gap: 16px; align-items: center;
+      background: var(--panel); border: 1px solid var(--border); padding: 12px; border-radius: 8px;
+    }
+    .vote-btn { padding: 10px 22px; font-size: 14px; border-radius: 8px; }
+    .vote-a { background: #1d4ed8; border-color: #3b82f6; color: #fff; }
+    .vote-tie { background: #334155; border-color: #64748b; color: #fff; }
+    .vote-b { background: #b45309; border-color: #f59e0b; color: #fff; }
+    #status { font-size: 13px; color: var(--good); margin-left: 12px; }
+  </style>
+</head>
+<body>
+  <h1>
+    <span>sim_core v3 成对编舞偏好采集工具 (4~8 小节同曲同段对比)</span>
+    <span style="font-size:12px;color:var(--muted);">快捷键: Space 播放/暂停 | 1 选A | 2 一样 | 3 选B | R 随机下一组</span>
+  </h1>
+
+  <div class="toolbar">
+    <label>曲目: <select id="songSel"></select></label>
+    <label>起始小节: <input type="number" id="barLo" value="16" min="0" max="120" style="width:62px;" /></label>
+    <label>窗口长度(小节):
+      <select id="barLen">
+        <option value="4" selected>4 小节</option>
+        <option value="6">6 小节</option>
+        <option value="8">8 小节</option>
+      </select>
+    </label>
+    <label>候选 A: <select id="srcA"></select></label>
+    <label>候选 B: <select id="srcB"></select></label>
+    <label><input type="checkbox" id="blindChk" checked /> 盲测隐藏来源</label>
+    <button class="primary" onclick="loadPair()">加载窗口</button>
+    <button onclick="randomPair()">随机下一组 (R)</button>
+    <audio id="audioPlayer" controls style="height:32px;"></audio>
+  </div>
+
+  <div class="arena">
+    <div class="card">
+      <div class="card-header">
+        <span id="titleA">候选 A (Left)</span>
+        <span id="badgeA" style="font-size:12px;color:var(--muted);"></span>
+      </div>
+      <div class="canvas-wrap"><canvas id="cvA" width="360" height="360"></canvas></div>
+      <pre class="simai" id="simaiA">加载中...</pre>
+      <div class="metrics" id="metricsA"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span id="titleB">候选 B (Right)</span>
+        <span id="badgeB" style="font-size:12px;color:var(--muted);"></span>
+      </div>
+      <div class="canvas-wrap"><canvas id="cvB" width="360" height="360"></canvas></div>
+      <pre class="simai" id="simaiB">加载中...</pre>
+      <div class="metrics" id="metricsB"></div>
+    </div>
+  </div>
+
+  <div class="vote-bar">
+    <button class="vote-btn vote-a" onclick="submitVote('A')">[1] 左边 (A) 更好玩 / 更合理</button>
+    <button class="vote-btn vote-tie" onclick="submitVote('tie')">[2] 一样 / 难分高下 (Tie)</button>
+    <button class="vote-btn vote-b" onclick="submitVote('B')">[3] 右边 (B) 更好玩 / 更合理</button>
+    <span id="status"></span>
+  </div>
+
+<script>
+let catalog = [];
+let pairData = null;
+let swappedBlind = false;
+const audio = document.getElementById('audioPlayer');
+
+const BTN_ANGLES = [22.5, 67.5, 112.5, 157.5, 202.5, 247.5, 292.5, 337.5];
+
+async function init() {
+  const res = await fetch('/api/catalog').then(r => r.json());
+  catalog = res.songs || [];
+  const songSel = document.getElementById('songSel');
+  songSel.innerHTML = catalog.map(s => `<option value="${s.song}">${s.song} (Lv ${s.lv})</option>`).join('');
+  songSel.onchange = updateSources;
+  updateSources();
+  await loadPair();
+  requestAnimationFrame(renderLoop);
+}
+
+function updateSources() {
+  const song = document.getElementById('songSel').value;
+  const item = catalog.find(x => x.song === song) || catalog[0];
+  if (!item) return;
+  const opts = item.sources.map(s => `<option value="${s}">${s}</option>`).join('');
+  const sA = document.getElementById('srcA');
+  const sB = document.getElementById('srcB');
+  sA.innerHTML = opts;
+  sB.innerHTML = opts;
+  sA.value = 'official';
+  sB.value = item.sources.includes('champ_slide80') ? 'champ_slide80' : item.sources[item.sources.length - 1];
+}
+
+async function loadPair() {
+  const song = document.getElementById('songSel').value;
+  const barLo = parseInt(document.getElementById('barLo').value || '16', 10);
+  const barLen = parseInt(document.getElementById('barLen').value || '4', 10);
+  const barHi = barLo + barLen;
+  let srcA = document.getElementById('srcA').value;
+  let srcB = document.getElementById('srcB').value;
+  const blind = document.getElementById('blindChk').checked;
+  swappedBlind = blind && (Math.random() < 0.5);
+  const qA = swappedBlind ? srcB : srcA;
+  const qB = swappedBlind ? srcA : srcB;
+
+  document.getElementById('status').textContent = '正在模拟双手与身体轨迹...';
+  const url = `/api/pair?song=${encodeURIComponent(song)}&source_a=${encodeURIComponent(qA)}&source_b=${encodeURIComponent(qB)}&bar_lo=${barLo}&bar_hi=${barHi}`;
+  const data = await fetch(url).then(r => r.json());
+  if (!data.ok) {
+    document.getElementById('status').textContent = '加载失败: ' + data.error;
+    return;
+  }
+  pairData = data;
+  audio.src = `/api/audio?song=${encodeURIComponent(song)}`;
+  audio.currentTime = data.cand_a.t_start;
+  updateCards(false);
+  document.getElementById('status').textContent = `已加载小节 ${barLo}..${barHi} (${data.cand_a.t_start.toFixed(2)}s - ${data.cand_a.t_end.toFixed(2)}s)`;
+}
+
+function updateCards(reveal) {
+  if (!pairData) return;
+  const blind = document.getElementById('blindChk').checked && !reveal;
+  for (const [side, c] of [['A', pairData.cand_a], ['B', pairData.cand_b]]) {
+    document.getElementById('title' + side).textContent = blind ? `候选 ${side} (盲测)` : `候选 ${side}: ${c.source}`;
+    document.getElementById('badge' + side).textContent = `可玩=${c.is_playable ? '是' : '否(硬违规:' + c.hard_violations.length + ')'} | 别扭度=${c.awkward_mean.toFixed(3)}`;
+    document.getElementById('simai' + side).textContent = c.simai_excerpt || '(无文本)';
+    const f = c.interest_features;
+    document.getElementById('metrics' + side).innerHTML =
+      `词表: ${c.per_bar_words.map(w => w.word_code.slice(0, 10)).join(' → ')}<br/>` +
+      `熵=${f.vocab_entropy.toFixed(2)} | 递进=${f.phrase_development.toFixed(2)} | 呼应=${f.motif_echo_transformed.toFixed(2)} | ` +
+      `副歌对比=${f.chorus_peak_contrast.toFixed(2)} | 音画=${f.music_kinetic_coupling.toFixed(2)} | 防停滞=${f.anti_stagnation.toFixed(2)}`;
+  }
+}
+
+function randomPair() {
+  if (!catalog.length) return;
+  const item = catalog[Math.floor(Math.random() * catalog.length)];
+  document.getElementById('songSel').value = item.song;
+  updateSources();
+  const srcs = item.sources;
+  const i1 = Math.floor(Math.random() * srcs.length);
+  let i2 = Math.floor(Math.random() * srcs.length);
+  if (i2 === i1) i2 = (i1 + 1) % srcs.length;
+  document.getElementById('srcA').value = srcs[i1];
+  document.getElementById('srcB').value = srcs[i2];
+  document.getElementById('barLo').value = String(4 + 4 * Math.floor(Math.random() * 14));
+  loadPair();
+}
+
+async function submitVote(choice) {
+  if (!pairData) return;
+  const payload = {
+    song: pairData.cand_a.song,
+    slot: pairData.cand_a.slot,
+    bar_lo: pairData.cand_a.bar_lo,
+    bar_hi: pairData.cand_a.bar_hi,
+    source_a: pairData.cand_a.source,
+    source_b: pairData.cand_b.source,
+    features_a: pairData.cand_a.interest_features,
+    features_b: pairData.cand_b.interest_features,
+    choice: choice,
+  };
+  const res = await fetch('/api/vote', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload),
+  }).then(r => r.json());
+  updateCards(true);
+  if (res.ok) {
+    document.getElementById('status').textContent =
+      `已写入 ${res.file} (共 ${res.total_jsonl_lines} 条) | 揭晓: A=${pairData.cand_a.source}, B=${pairData.cand_b.source}`;
+  }
+}
+
+function drawCandidate(cvId, cand, tNow) {
+  const cv = document.getElementById(cvId);
+  const ctx = cv.getContext('2d');
+  const W = cv.width, H = cv.height, cx = W / 2, cy = H / 2;
+  const scale = 0.50; // mm -> px
+  ctx.clearRect(0, 0, W, H);
+
+  // Draw screen circle & 8 buttons
+  ctx.strokeStyle = '#2a364a';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(cx, cy, 270 * scale, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy, 125 * scale, 0, Math.PI * 2); ctx.stroke();
+
+  for (let i = 0; i < 8; i++) {
+    const rad = BTN_ANGLES[i] * Math.PI / 180.0;
+    const bx = cx + Math.sin(rad) * 215 * scale;
+    const by = cy - Math.cos(rad) * 215 * scale;
+    ctx.strokeStyle = '#475569';
+    ctx.beginPath(); ctx.arc(bx, by, 22, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#64748b';
+    ctx.font = '11px monospace';
+    ctx.fillText(String(i + 1), bx - 3, by + 4);
+  }
+
+  if (!cand || !cand.frames.length) return;
+  const tClamped = Math.max(cand.t_start, Math.min(cand.t_end, tNow));
+
+  // Draw upcoming/active notes within [tClamped - 0.08, tClamped + 0.45]
+  for (const n of cand.notes) {
+    if (n.end_t >= tClamped - 0.06 && n.t <= tClamped + 0.45) {
+      const nx = cx + n.xy[0] * scale;
+      const ny = cy - n.xy[1] * scale;
+      const active = Math.abs(n.t - tClamped) <= 0.06 || (n.t <= tClamped && tClamped <= n.end_t);
+      ctx.strokeStyle = n.hand === 'L' ? '#2b95c3' : '#c98842';
+      ctx.lineWidth = active ? 3.0 : 1.5;
+      ctx.beginPath(); ctx.arc(nx, ny, active ? 18 : 12, 0, Math.PI * 2); ctx.stroke();
+    }
+  }
+
+  // Find nearest frame
+  let bestF = cand.frames[0];
+  let bestDt = 999;
+  for (const f of cand.frames) {
+    const d = Math.abs(f.t - tClamped);
+    if (d < bestDt) { bestDt = d; bestF = f; }
+  }
+
+  // Draw torso & shoulders
+  const tx = cx + bestF.torso[0] * scale;
+  const ty = cy - (-320 + bestF.torso[1]) * scale;
+  const yawRad = bestF.torso[2] * Math.PI / 180.0;
+  const shL = [tx - Math.cos(yawRad) * 180 * scale, ty + Math.sin(yawRad) * 180 * scale];
+  const shR = [tx + Math.cos(yawRad) * 180 * scale, ty - Math.sin(yawRad) * 180 * scale];
+  ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(shL[0], shL[1]); ctx.lineTo(shR[0], shR[1]); ctx.stroke();
+
+  // Draw Left & Right arms + palms
+  for (const [side, sh, xyz, col] of [['L', shL, bestF.l, '#2b95c3'], ['R', shR, bestF.r, '#c98842']]) {
+    const px = cx + xyz[0] * scale;
+    const py = cy - xyz[1] * scale;
+    ctx.strokeStyle = col; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.moveTo(sh[0], sh[1]); ctx.lineTo(px, py); ctx.stroke();
+    ctx.fillStyle = xyz[2] <= 5 ? col : col + '66';
+    ctx.beginPath(); ctx.arc(px, py, 48 * scale, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 12px monospace';
+    ctx.fillText(side, px - 4, py + 4);
+  }
+  ctx.fillStyle = '#94a3b8'; ctx.font = '11px monospace';
+  ctx.fillText(`t=${tClamped.toFixed(2)}s | yaw=${bestF.torso[2].toFixed(1)}°`, 8, H - 8);
+}
+
+function renderLoop() {
+  if (pairData) {
+    if (audio.currentTime > pairData.cand_a.t_end) {
+      audio.currentTime = pairData.cand_a.t_start;
+    }
+    const t = audio.currentTime || pairData.cand_a.t_start;
+    drawCandidate('cvA', pairData.cand_a, t);
+    drawCandidate('cvB', pairData.cand_b, t);
+  }
+  requestAnimationFrame(renderLoop);
+}
+
+window.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  if (e.code === 'Space') { e.preventDefault(); audio.paused ? audio.play() : audio.pause(); }
+  else if (e.key === '1') submitVote('A');
+  else if (e.key === '2') submitVote('tie');
+  else if (e.key === '3') submitVote('B');
+  else if (e.key.toLowerCase() === 'r') randomPair();
+});
+
+init();
+</script>
+</body>
+</html>

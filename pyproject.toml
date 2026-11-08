@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sim_core"
+version = "3.2.0"
+description = "Human Maimai DX Play Simulator, Full-Body Biomechanics and Choreography Evaluator"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "numba>=0.57",
+    "torch>=2.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["sim_core*"]
